@@ -1,0 +1,22 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#000">
+<link rel="icon" href="data:,"><link rel="manifest" href="manifest.webmanifest"><title>Blindspot</title>
+<style>
+ body{margin:0;background:#000;color:#ddd;font:15px system-ui;text-align:center}
+ nav{display:flex;gap:8px;justify-content:center;padding:10px}
+ button,select,input[type=file]{font:inherit;padding:8px 14px;border-radius:8px;border:1px solid #444;background:#181818;color:#ddd}
+ button.on{background:#2a6;color:#fff} canvas{background:#000;image-rendering:pixelated;max-width:100%}
+ video{width:100%;max-height:60vh;background:#111} progress{width:90%;height:14px} p{margin:8px}
+</style></head><body>
+<nav><button id="tsend">Send File</button><button id="trecv">Receive File</button></nav>
+<section id="send"><div id="pick"><p><input type="file" id="file"></p>
+ <p>Profile <select id="prof"><option value="classic">Classic (baseline)</option><option value="fast">Fast</option><option value="turbo" selected>Turbo</option><option value="max">Max</option></select></p>
+ <p>FPS <select id="fps"><option>10</option><option selected>15</option><option>20</option><option>30</option></select> <small>(use a divisor of your display refresh, e.g. 60 Hz → 30/20/15)</small></p></div>
+ <div id="stage" hidden>
+  <div id="pairbox" hidden><p>Pairing code <b id="code" style="font-size:1.6em;letter-spacing:.1em"></b><br>on the receiver, enter it or open <span id="joinurl"></span></p>
+   <p><label><input type="checkbox" id="auto" checked> auto-start when receiver is aligned</label> <button id="startnow">Start now</button></p></div>
+  <p id="hs"></p><canvas id="cv"></canvas><p id="sstat"></p></div></section>
+<section id="recv" hidden><video id="vid" playsinline muted></video>
+ <p>Profile (when not paired) <select id="rprof"><option value="auto" selected>Auto-detect</option><option value="classic">Classic</option><option value="fast">Fast</option><option value="turbo">Turbo</option><option value="max">Max</option></select></p>
+ <p><input id="codein" placeholder="Pairing code" maxlength="6" size="8" autocapitalize="characters" style="text-transform:uppercase"> <button id="go">Start camera</button></p><p id="hs2"></p><progress id="bar" max="100" value="0"></progress><p id="rstat"></p></section>
+<script type="module" src="app.js"></script></body></html>
