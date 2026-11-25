@@ -13,8 +13,8 @@ export async function prepareSend(file, canvas, fps, profName, onFrame) {
   const put = (buf, x, y, c) => { const p = (y * G + x) * 4; buf[p] = c[0]; buf[p + 1] = c[1]; buf[p + 2] = c[2]; buf[p + 3] = 255; };
   for (let i = 0; i < G * G; i++) put(base, i % G, (i / G) | 0, [0, 0, 0]);
   for (let i = 0; i < 4; i++) { const [a, b] = L.fidOrigin(i);
-    for (let y = 1; y < L.FB - 1; y++) for (let x = 1; x < L.FB - 1; x++) put(base, a + x, b + y, [255, 255, 255]); }
-  for (let i = 0; i < L.NPATCH; i++) for (let k = 0; k < L.PW; k++) put(base, L.CAL_X + i * L.PW + k, L.CAL_Y, L.patchRGB(i));
+    for (let y = L.RING; y < L.FB - L.RING; y++) for (let x = L.RING; x < L.FB - L.RING; x++) put(base, a + x, b + y, [255, 255, 255]); }
+  for (let i = 0; i < L.NPATCH; i++) for (let k = 0; k < L.PW; k++) for (let r = 0; r < L.CAL_H; r++) put(base, L.CAL_X + i * L.PW + k, L.CAL_Y + r, L.patchRGB(i));
   const ctx = canvas.getContext('2d'); let size = 0, mode = 'align', last = 0, alive = true, lcg = 12345;
   const fit = () => { size = Math.floor(Math.min(innerWidth, document.fullscreenElement ? innerHeight : innerHeight * 0.8) / G) * G;
     canvas.width = canvas.height = size; ctx.imageSmoothingEnabled = false; draw(true); };

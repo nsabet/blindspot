@@ -87,6 +87,7 @@ Pick a profile on the sender; with a pairing code the receiver adopts it automat
 | Profile | Grid | Colours/cell | Code rate | Packets/frame | Payload/frame | Ceiling @ 15 fps |
 |---|---|---|---|---|---|---|
 | classic (v1 baseline) | 64 | 8 (3 bit) | 1/2 | 1 | ~0.5 KB | ~7 KB/s |
+| wide | 100 | 8 (3 bit) | 1/2 | 3 | ~1.5 KB | ~22 KB/s |
 | fast | 112 | 64 (6 bit) | 1/2 | 4 | ~4 KB | ~60 KB/s |
 | turbo (default) | 128 | 64 (6 bit) | 2/3 | 7 | ~7 KB | ~105 KB/s |
 | max | 160 | 64 (6 bit) | 3/4 | 13 | ~13 KB | ~196 KB/s |
@@ -99,9 +100,22 @@ Techniques: 4 Gray-coded brightness levels per channel with soft bit confidences
 
 Troubleshooting additions: "locked" but no packets on fast/turbo/max -> grey-ramp calibration failed or cells too small: step down a profile, move closer, full-screen the sender. "Cannot prepare: file too large" -> single-block limit (~55 MB at 1 KB packets); split the file.
 
+
+### 3c. Camera setup, QR deep link, and "fast/turbo/max won't lock"
+
+**QR code:** after you pick a file the sender shows a QR code. Scan it with the phone's normal camera app: it opens the deployed page (for example `https://nsabet.github.io/blindspot/?r=1&p=turbo&code=ABC234`) straight on the Receive tab with the profile (and pairing code, when a server is available) pre-filled. Without a handshake server (GitHub Pages) the sender waits for you to press **Start now** once the phone is aimed.
+
+**Camera controls (receiver):** after *Start camera* you get a lens selector (main / ultra-wide / tele), a resolution selector (720p, 1080p, 4K) and, where the browser supports it, a zoom slider (Chrome on Android; iOS Safari does not expose zoom, so move the phone instead). Use them so that the status line reads **Cell size >= the profile's minimum** (classic/wide 5 px, fast/turbo 6 px, max 7 px). The sender's canvas is small on a laptop; tap it for full screen to give the camera more pixels per cell.
+
+**Why 64-colour profiles failed before, and what changed:** the calibration strip was a single cell tall and the corner markers small, so on bigger grids (smaller cells) the receiver often could not read the grey ramp or find the corners, and blur/colour crosstalk then ate the margin between the 4 brightness levels. The receiver now (1) reads a 3-cell-tall strip and larger corner markers on big grids, (2) fits the camera's 3x3 colour-mixing matrix from the RGB-cube corner patches and inverts it, (3) maps each cell to level coordinates using the measured ramp, and (4) runs a blind 2D equaliser that undoes inter-cell blur. The status line now says *why* it cannot lock (corners not found / calibration strip off-screen / ramp unreadable) and shows the measured cell size.
+
+**Offline channel simulator:** `node tests/sim.mjs [profile ...]` renders frames through a synthetic phone camera (perspective, blur, noise, gamma/gain/offset, colour crosstalk, 4:2:0 chroma) and runs the real vision code plus a JS port of the FEC. In the default simulated channel all profiles decode from about 5 px per cell (4 px marginal for max); in a harsher channel (more blur and noise) 64-colour profiles needed about 5-6 px. This is a model, not a measurement of your phone: real cameras add focus hunting, moire and video compression, so treat the minimums as targets and use the on-screen cell-size readout.
+
+If a 64-colour profile still will not decode: step down (max, turbo, fast, wide, classic), enlarge the sender canvas (full screen), zoom/move closer until the cell size is above the minimum, lock the phone focus by tapping the screen, avoid screen glare, and keep exposure steady. `wide` keeps the robust 8-colour modulation but uses a bigger grid, which helps tell whether the problem is cell size or colour depth.
+
 ## 4. Using it
 
-1. **Mac:** open the app → *Send File* → choose a file (start with a **small test file, a few KB**). The screen shows a pairing code and an alignment frame.
+1. **Mac:** open the app (or your deployed page) → *Send File* → choose a file (start with a **small test file, a few KB**). The screen shows a pairing code and an alignment frame.
 2. **Phone:** open the sender's join URL (or the app and type the code) → *Receive File* → *Start camera* and grant permission.
 3. Point the phone at the screen so **all four white corner squares are visible**, roughly square-on, 20–40 cm for a laptop screen. Hold steady.
 4. The status line shows `locked`, packets recovered vs needed, CRC failures, packets/s and ETA. The file downloads automatically when done.
@@ -177,7 +191,7 @@ GitHub Pages is static HTTPS hosting, so the **camera works** and the service wo
 **A. GitHub Actions (recommended; nothing built is committed)**
 1. Create a repo (e.g. `blindspot`), commit everything including `core/Cargo.lock`, push to `main`.
 2. Settings → Pages → *Build and deployment* → Source: **GitHub Actions**.
-3. `.github/workflows/pages.yml` builds with `scripts/build-pages.sh` and deploys on every push. URL: `https://<user>.github.io/blindspot/`. (Action versions in the workflow were current when written; bump them if GitHub warns.)
+3. `.github/workflows/pages.yml` builds with `scripts/build-pages.sh` and deploys on every push. URL: `https://<user>.github.io/blindspot/`. If the first run fails with `Get Pages site failed ... Not Found`, Pages isn't enabled yet: do step 2, then re-run the workflow (Actions → the failed run → Re-run all jobs). Warnings about Node 20 actions are harmless; bump action versions if GitHub says so.
 
 **B. Build locally and push a `gh-pages` branch**
 ```sh
