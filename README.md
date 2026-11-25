@@ -177,7 +177,7 @@ GitHub Pages is static HTTPS hosting, so the **camera works** and the service wo
 **A. GitHub Actions (recommended; nothing built is committed)**
 1. Create a repo (e.g. `blindspot`), commit everything including `core/Cargo.lock`, push to `main`.
 2. Settings → Pages → *Build and deployment* → Source: **GitHub Actions**.
-3. `.github/workflows/pages.yml` builds with `scripts/build-pages.sh` and deploys on every push. URL: `https://<user>.github.io/blindspot/`. (Action versions in the workflow were current when written; bump them if GitHub warns.)
+3. `.github/workflows/pages.yml` builds with `scripts/build-pages.sh` and deploys on every push. URL: `https://<user>.github.io/blindspot/`. If the first run fails with `Get Pages site failed ... Not Found`, Pages isn't enabled yet: do step 2, then re-run the workflow (Actions → the failed run → Re-run all jobs). Warnings about Node 20 actions are harmless; bump action versions if GitHub says so.
 
 **B. Build locally and push a `gh-pages` branch**
 ```sh

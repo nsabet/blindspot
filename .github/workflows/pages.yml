@@ -1,4 +1,5 @@
-# Settings > Pages > Source must be set to "GitHub Actions". Pushing to main builds and deploys.
+# One-time: Settings > Pages > Build and deployment > Source = "GitHub Actions" (before the first run).
+# Pushing to main builds and deploys. (configure-pages is omitted: the site uses relative paths, so it is not needed.)
 name: Deploy Blindspot to GitHub Pages
 on:
   push:
@@ -15,7 +16,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -26,10 +27,10 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
       - name: Build site
         run: scripts/build-pages.sh dist
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: dist
+          include-hidden-files: true
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -38,4 +39,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
