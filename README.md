@@ -1,4 +1,4 @@
-# OptXfer: optical file transfer (monitor → phone camera)
+# Blindspot: optical file transfer (monitor → phone camera)
 
 Offline-capable PWA. **Sender** draws an endless stream of 8-colour frames on a `<canvas>`;
 **Receiver** films the screen, recovers the packets, and downloads the file.
@@ -28,11 +28,11 @@ No Node.js, bundler, or C toolchain for zstd is required (Zstd is the pure-Rust 
 ## 2. Build
 
 ```sh
-cd optxfer
+cd blindspot
 ./build.sh            # = cd core && wasm-pack build --target web --release --out-dir ../web/pkg
 ```
 
-Output lands in `web/pkg/` (`optxfer_core.js`, `optxfer_core_bg.wasm`). The `web/` folder is the whole app: static files only.
+Output lands in `web/pkg/` (`blindspot_core.js`, `blindspot_core_bg.wasm`). The `web/` folder is the whole app: static files only.
 
 ## 3. Run the server
 
@@ -115,6 +115,8 @@ Troubleshooting additions: "locked" but no packets on fast/turbo/max -> grey-ram
 core/src/dsp.rs   CRC-32, conv encoder (133,171 octal), soft Viterbi, interleaver
 core/src/lib.rs   wasm-bindgen Encoder / Decoder (packet format, RaptorQ, Zstd container)
 web/layout.js     shared grid geometry; must match on both sides
+scripts/           build-pages.sh (assemble static site + .nojekyll), publish.sh (gh-pages / userpage)
+.github/workflows pages.yml (Actions deploy to Pages)
 server.py         static server (0.0.0.0) + handshake relay (SSE/POST)
 gen-cert.sh       self-signed cert for LAN HTTPS testing
 web/link.js       back-channel client (create/join session, send, receive)
@@ -149,7 +151,7 @@ Packet = 12-byte OTI + 4-byte payload ID + 492-byte symbol + 4-byte CRC = 512 B 
 | Sender says "No handshake server reachable" | Page was loaded from a static host or file://, or server.py not running; works but without feedback |
 | Sender never auto-starts | Receiver not reporting "align ok": check the receiver status line says `locked`; or press *Start now* |
 | Sender stuck "Sending…" after the file downloaded | The `done` message could not be posted (network dropped); it retries 4 times and is replayed when the sender reconnects. Check connectivity |
-| Blank page, console: failed to fetch `pkg/optxfer_core_bg.wasm` | You haven't run `./build.sh`, or you are serving the wrong directory (serve `web/`) |
+| Blank page, console: failed to fetch `pkg/blindspot_core_bg.wasm` | You haven't run `./build.sh`, or you are serving the wrong directory (serve `web/`) |
 | `Incorrect response MIME type` for wasm | Server not sending `application/wasm`; use `python3 -m http.server` (recent) or a proper static host |
 | Camera prompt never appears / `getUserMedia` undefined | Not HTTPS/localhost; use a tunnel or host (section 3) |
 | Old behaviour after rebuilding | Service worker cache: DevTools → Application → Unregister, hard reload, or bump `C` in `sw.js` |
@@ -166,7 +168,35 @@ Packet = 12-byte OTI + 4-byte payload ID + 492-byte symbol + 4-byte CRC = 512 B 
 | Throughput is low (~10 KB/s) | Expected for this first version. Levers: larger grid + packet (needs higher camera resolution), higher fps, better lighting |
 | Screen sleeps mid-transfer | Wake Lock is best-effort; on the phone keep the app in the foreground; check iOS Low Power Mode |
 
-## 7. Known limitations
+## 7. Publish on GitHub Pages (github.io)
+
+GitHub Pages is static HTTPS hosting, so the **camera works** and the service worker gives **offline use after the first load**. There is no handshake server there: the sender detects that and streams open-loop, and the receiver **auto-detects the profile** (leave *Profile* on Auto-detect). All paths are relative, so the same build works at `https://<user>.github.io/` and at `https://<user>.github.io/blindspot/`. `.nojekyll` is generated for you (it stops Pages running Jekyll over the site).
+
+`web/pkg/` is git-ignored build output, so deployment must build the Wasm. Pick one route:
+
+**A. GitHub Actions (recommended; nothing built is committed)**
+1. Create a repo (e.g. `blindspot`), commit everything including `core/Cargo.lock`, push to `main`.
+2. Settings → Pages → *Build and deployment* → Source: **GitHub Actions**.
+3. `.github/workflows/pages.yml` builds with `scripts/build-pages.sh` and deploys on every push. URL: `https://<user>.github.io/blindspot/`. (Action versions in the workflow were current when written; bump them if GitHub warns.)
+
+**B. Build locally and push a `gh-pages` branch**
+```sh
+scripts/publish.sh gh-pages          # builds, then force-pushes dist/ to origin/gh-pages
+```
+Then Settings → Pages → Source: *Deploy from a branch* → `gh-pages` / `(root)`.
+
+**C. Add it to your existing personal site (`<user>.github.io` repo) under `/blindspot/`**
+```sh
+scripts/publish.sh userpage ../<user>.github.io    # builds, copies into <repo>/blindspot/, commits
+cd ../<user>.github.io && git push
+```
+Do **not** add a root `.nojekyll` to that repo unless your site doesn't use Jekyll; the Blindspot files don't need it there (no leading-underscore names).
+
+**D. Deploy from `/docs` on main:** `scripts/build-pages.sh docs`, commit `docs/`, Settings → Pages → *Deploy from a branch* → `main` / `/docs`.
+
+Notes: each build stamps a fresh service-worker cache name, so returning users pick up new versions on reload (close and reopen the PWA once). If you change the repo name or URL nothing needs editing. Pages serves `.wasm` as `application/wasm` automatically.
+
+## 8. Known limitations
 - The back-channel needs the LAN server; a fully air-gapped pair of devices has no feedback path and uses open-loop mode.
 - Fiducial detection is simple (bright squarish blobs; top/bottom split by y) and fails under large rotation or heavy glare.
 - Only the fastest Zstd level is available in `ruzstd`, so compression ratio is modest.

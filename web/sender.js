@@ -1,4 +1,4 @@
-import init, { Encoder } from './pkg/optxfer_core.js';
+import init, { Encoder } from './pkg/blindspot_core.js';
 import { PROFILES, makeLayout, cellRGB } from './layout.js';
 
 // Shows an ALIGNMENT frame until start(); then streams frames, each carrying several independent packets (spatial bands).

@@ -1,10 +1,11 @@
-import init, { Decoder } from './pkg/optxfer_core.js';
+import init, { Decoder } from './pkg/blindspot_core.js';
 import { PROFILES, makeLayout, levelSoft } from './layout.js';
 
-let P = PROFILES.turbo, lay = makeLayout(P.G), dec = null, cpp = 0;
 const cv = new OffscreenCanvas(1, 1), cx = cv.getContext('2d', { willReadFrequently: true });
-const setProfile = n => { P = PROFILES[n] || P; lay = makeLayout(P.G); dec = new Decoder(P.bpc, P.rate, P.pkt); cpp = dec.cells_per_packet(); };
-const ready = init().then(() => setProfile('turbo'));
+const Q = {}, ORDER = ['turbo', 'max', 'fast', 'classic'];
+const getQ = n => Q[n] || (Q[n] = (() => { const P = PROFILES[n], dec = new Decoder(P.bpc, P.rate, P.pkt); return { n, P, lay: makeLayout(P.G), dec, cpp: dec.cells_per_packet() }; })());
+let auto = true, cur = 'turbo', found = null, ti = 0;     // auto: try one candidate profile per frame until a packet passes CRC
+const ready = init();
 
 // 1) fiducials on a half-resolution copy (4x cheaper): bright, low-saturation, squarish blobs -> TL,TR,BL,BR
 function findFids(d, W, H) {
@@ -54,9 +55,8 @@ function samp(d, W, H, x, y) {            // 3x3 box average
   return o.map(v => v / 9);
 }
 // 3) calibrate from the strip, emit `bpc` soft bits per cell
-function process(img) {
-  const { data: d, width: W, height: H } = img, f = findFids(d, W, H);
-  if (!f) return null;
+function process(img, f, { P, lay }) {
+  const { data: d, width: W, height: H } = img;
   const h = homog([0, 1, 2, 3].map(lay.fidCenter), f.map(p => [p.x, p.y]));
   const px = (u, v) => { const [x, y] = warp(h, u, v); return samp(d, W, H, x, y); };
   const pc = i => px(lay.CAL_X + i * lay.PW + lay.PW / 2, lay.CAL_Y + 0.5), B = P.bpc, DATA = lay.DATA;
@@ -79,11 +79,14 @@ function process(img) {
 }
 onmessage = async ({ data }) => {
   await ready;
-  if (data.profile) { setProfile(data.profile); return; }
+  if (data.profile) { auto = data.profile === 'auto'; if (!auto) cur = data.profile; found = null; return; }
   const bmp = data.bmp; cv.width = bmp.width; cv.height = bmp.height; cx.drawImage(bmp, 0, 0); bmp.close();
-  const soft = process(cx.getImageData(0, 0, cv.width, cv.height));
-  if (soft) { const NP = Math.floor(lay.DATA.length / cpp), per = cpp * P.bpc;
-    for (let p = 0; p < NP && !dec.done(); p++) dec.push_packet(soft.subarray(p * per, (p + 1) * per)); }
-  postMessage({ type: 'stat', locked: !!soft, good: dec.good(), bad: dec.bad(), needed: dec.needed() });
-  if (dec.done()) { const out = dec.file_data(); postMessage({ type: 'done', name: dec.file_name(), data: out }, [out.buffer]); }
+  const img = cx.getImageData(0, 0, cv.width, cv.height), f = findFids(img.data, cv.width, cv.height);
+  const name = auto ? (found || ORDER[ti++ % ORDER.length]) : cur, q = getQ(name);
+  const soft = f ? process(img, f, q) : null;
+  if (soft) { const NP = Math.floor(q.lay.DATA.length / q.cpp), per = q.cpp * q.P.bpc;
+    for (let p = 0; p < NP && !q.dec.done(); p++) q.dec.push_packet(soft.subarray(p * per, (p + 1) * per));
+    if (auto && !found && q.dec.good() > 0) found = name; }
+  postMessage({ type: 'stat', locked: auto && !found ? !!f : !!soft, profile: found || (auto ? null : cur), good: q.dec.good(), bad: q.dec.bad(), needed: q.dec.needed() });
+  if (q.dec.done()) { const out = q.dec.file_data(); postMessage({ type: 'done', name: q.dec.file_name(), data: out }, [out.buffer]); }
 };

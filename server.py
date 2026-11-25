@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OptXfer server: static files (web/) + tiny handshake relay (SSE + POST). Python 3 stdlib only.
+"""Blindspot server: static files (web/) + tiny handshake relay (SSE + POST). Python 3 stdlib only.
 Binds to 0.0.0.0 by default so any host on the network can connect.
   python3 server.py                       # http://<lan-ip>:8080
   python3 server.py --cert cert.pem --key key.pem   # https (needed for phone camera over LAN)

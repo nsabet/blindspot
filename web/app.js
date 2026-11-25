@@ -30,7 +30,7 @@ $('file').onchange = async e => {
   let started = false;
   const begin = () => { if (started) return; started = true; ctl.start(); link.send({ type: 'start', name: f.name, size: f.size, profile: pn }); hs('Sending…'); };
   $('startnow').onclick = begin;
-  if (!code) { hs('No handshake server reachable: sending open-loop (receiver must pick the same profile)'); return begin(); }
+  if (!code) { hs('No handshake server reachable: sending open-loop (the receiver auto-detects the profile)'); return begin(); }
   link.send({ type: 'profile', profile: pn });
   $('pairbox').hidden = false; $('code').textContent = code; $('joinurl').textContent = `${location.origin}/?code=${code}`;
   hs('Waiting for receiver…');
@@ -50,14 +50,14 @@ $('go').onclick = async () => {
     const gotProfile = new Promise(res => { const t = setTimeout(res, 2500);
       link.onmsg = m => { if (m.profile && PROFILES[m.profile]) { pn = m.profile; clearTimeout(t); res(); } if (m.type === 'start') hs('Sender started transmitting.'); }; });
     try { await link.join(code); } catch { hs('Cannot join: wrong code or server unreachable.'); return; }
-    await gotProfile; link.send({ type: 'joined' }); hs(`Joined sender (${PROFILES[pn].label}). Starting camera…`);
-  } else hs('No code: open-loop mode (sender gets no feedback). Profile must match the sender.');
-  await wake(); const P = PROFILES[pn];
+    await gotProfile; link.send({ type: 'joined' }); hs(`Joined sender (${PROFILES[pn]?.label || 'auto-detect'}). Starting camera…`);
+  } else hs('No code: open-loop mode (sender gets no feedback). Profile will be auto-detected.');
+  await wake();
   try {
     const stopRx = await startReceive($('vid'), s => {
       if (s.done) { $('rstat').textContent = `Done: ${s.name} (${s.size} bytes)`; return; }
       $('bar').value = s.needed ? Math.min(100, 100 * s.good / (s.needed + 2)) : 0;
-      $('rstat').textContent = `${s.locked ? 'locked' : 'searching for corners…'} · ${s.res} · ${s.good}/${s.needed ? s.needed + 2 : '?'} packets` + (s.good ? ` · ${s.bad} CRC fails · ${(s.rate * (P.pkt - 20) / 1000).toFixed(1)} KB/s` : '') + (s.eta != null ? ` · ~${Math.ceil(s.eta)}s left` : '');
+      $('rstat').textContent = `${s.locked ? 'locked' : 'searching for corners…'} · ${s.res} · ${s.good}/${s.needed ? s.needed + 2 : '?'} packets` + (s.good ? ` · ${s.bad} CRC fails · ${PROFILES[s.profile] ? (s.rate * (PROFILES[s.profile].pkt - 20) / 1000).toFixed(1) + ' KB/s' : 'detecting profile…'}` : '') + (s.eta != null ? ` · ~${Math.ceil(s.eta)}s left` : '');
     }, link, pn);
     $('go').hidden = true; cleanup = () => { stopRx(); link?.close(); };
   } catch (e) { hs('Camera error: ' + e.message); link?.close(); }
